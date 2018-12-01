@@ -56,4 +56,32 @@ So I was counting on a Things Network gateway being within reach of my house, bu
 
 Likely use node sdk for the things network: https://www.npmjs.com/package/ttn
 
+## Stand Alone
+
+So the more I looked at the Things Network, the more I though I didn't want all of those dependencies. I really just want the units to talk with each other -- on their own little mesh network.
+
+Started looking into the possibilities, and found these encouraging pages:
+
+- Cool writeup of a mesh network using Arduino ... with visualizations and a gateway that I don't really need: https://nootropicdesign.com/projectlab/2018/10/20/lora-mesh-networking/
+
+- The code behind the mesh part: https://github.com/nootropicdesign/lora-mesh/blob/master/LoRaMesh/LoRaMesh.ino
+
+- Which is based on this "RadioHead" code: http://www.airspayce.com/mikem/arduino/RadioHead/
+
+Note that the RH_RF95 driver used in the mesh code above seems to be the right one I should use for my sparkfun boards, which have the RFM95W radio in them: https://www.sparkfun.com/products/14785
+
+That's confirmed in the example code for the board: https://github.com/sparkfunX/Pro_RF/blob/master/Examples/ProRF_RFM95/Example1_BasicRX/Example1_BasicRX.ino
+
+Now I just need to figure out how I'd transmit the message "I'm available" across the mesh network.
+
+### Loading libraries
+
+RadioHead Arduino package: http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.89.zip
+
+In Arudino did: Menu bar > Sketch > Include Library > Add .ZIP library ... and pointed it at the zip file I just downloaded.
+
+## Hardware Failure
+
+So I managed to brick one of the Sparkfun boards just by putting the example code on it. So just ordered three of the Adafruit Feather 0M 900Mhz boards ... which also will have much more memory.
+
 
