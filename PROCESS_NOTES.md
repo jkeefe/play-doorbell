@@ -56,9 +56,15 @@ So I was counting on a Things Network gateway being within reach of my house, bu
 
 Likely use node sdk for the things network: https://www.npmjs.com/package/ttn
 
-## Stand Alone
+## Hardware Failure
 
-So the more I looked at the Things Network, the more I though I didn't want all of those dependencies. I really just want the units to talk with each other -- on their own little mesh network.
+So I managed to brick one of the Sparkfun boards just by putting the example code on it. So just ordered three of the Adafruit Feather 0M 900Mhz boards ... which also will have much more memory.
+
+------
+
+# Stand-Alone Approach
+
+So the more I looked at the Things Network, the more I thought I didn't want all of those dependencies. I really just want the units to talk with each other -- on their own little mesh network.
 
 Started looking into the possibilities, and found these encouraging pages:
 
@@ -72,16 +78,43 @@ Note that the RH_RF95 driver used in the mesh code above seems to be the right o
 
 That's confirmed in the example code for the board: https://github.com/sparkfunX/Pro_RF/blob/master/Examples/ProRF_RFM95/Example1_BasicRX/Example1_BasicRX.ino
 
-Now I just need to figure out how I'd transmit the message "I'm available" across the mesh network.
+Now I just need to figure out how I'd transmit the message "I'm available" across the mesh network. Looks like the best way do to that is to address all of the other nodes individually.
 
-### Loading libraries
+## Hardware 
+
+Using:
+
+- [Adafruit Feather M0 with RFM95 LoRa Radio - 900MHz - RadioFruit PID: 3178](https://www.adafruit.com/product/3178)
+- NeoPixel Ring - 16 x 5050 RGB LED with Integrated Drivers PID: 1463
+- Arcade Button with LED - 30mm Translucent Green PID: 3487
+
+Then I followed this guide: [here](https://learn.adafruit.com/adafruit-feather-m0-radio-with-lora-radio-module)
+
+Note that it includes detailed info for getting the Arduino IDE working with the Feather M0 board, which I followed.
+
+Also tried the M0 "blink" test described in the guide.
+
+## Software
+
+### Libraries
 
 RadioHead Arduino package: http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.89.zip
 
 In Arudino did: Menu bar > Sketch > Include Library > Add .ZIP library ... and pointed it at the zip file I just downloaded.
 
-## Hardware Failure
+### Example code
 
-So I managed to brick one of the Sparkfun boards just by putting the example code on it. So just ordered three of the Adafruit Feather 0M 900Mhz boards ... which also will have much more memory.
+Started with the first example -- a simple client -- in Arduino using: Menu bar > File -> Examples -> RadioHead -> rf95 -> rf95_client
+
+Encouraged by this code in the top:
+
+```
+// Tested with Anarduino MiniWirelessLoRa, Rocket Scream Mini Ultra Pro with
+// the RFM95W, Adafruit Feather M0 with RFM95
+```
+
+... since I now have the M0 Feathers with the RFM95 radio.
+
+Also see an encrypted example there, which is awesome.
 
 
