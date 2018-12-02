@@ -92,7 +92,27 @@ Then I followed this guide: [here](https://learn.adafruit.com/adafruit-feather-m
 
 Note that it includes detailed info for getting the Arduino IDE working with the Feather M0 board, which I followed.
 
+Opening the package, there was a paper with what looks like a MAC id of some kind, so marked "01" on both that paper and the white box on the back of the first Feather.
+
 Also tried the M0 "blink" test described in the guide.
+
+```
+// the setup function runs once when you press reset or power the board
+void setup() {
+  // initialize digital pin 13 as an output.
+  pinMode(13, OUTPUT);
+}
+
+// the loop function runs over and over again forever
+void loop() {
+  digitalWrite(13, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(1000);              // wait for a second
+  digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
+  delay(1000);              // wait for a second
+}
+```
+
+Worked.
 
 ## Software
 
@@ -104,7 +124,7 @@ In Arudino did: Menu bar > Sketch > Include Library > Add .ZIP library ... and p
 
 ### Example code
 
-Started with the first example -- a simple client -- in Arduino using: Menu bar > File -> Examples -> RadioHead -> rf95 -> rf95_client
+Started with examples in the Example sketches.
 
 Encouraged by this code in the top:
 
@@ -117,4 +137,138 @@ Encouraged by this code in the top:
 
 Also see an encrypted example there, which is awesome.
 
+Node 01 found the a "simple server" example in Arduino using: `Menu bar > File -> Examples -> RadioHead -> rf95 -> rf95_server`
 
+Changed this section, as it indicates, to this:
+
+```
+// Singleton instance of the radio driver
+// RH_RF95 rf95;
+//RH_RF95 rf95(5, 2); // Rocket Scream Mini Ultra Pro with the RFM95W
+RH_RF95 rf95(8, 3); // Adafruit Feather M0 with RFM95 
+```
+
+Uploaded that to the board.
+
+Node 02 pulled up the client ... same path but `-> rf95_server`
+
+Again, changed this section, as it indicates, to this:
+
+```
+// Singleton instance of the radio driver
+// RH_RF95 rf95;
+//RH_RF95 rf95(5, 2); // Rocket Scream Mini Ultra Pro with the RFM95W
+RH_RF95 rf95(8, 3); // Adafruit Feather M0 with RFM95 
+```
+
+Opened Serial Monitor `Menu bar -> Tools -> Serial Monitor`
+
+Got ...
+
+```
+Sending to rf95_server
+No reply, is rf95_server running?
+Sending to rf95_server
+...
+```
+
+Put lipo battery on Node 1 ... 
+
+No luck.
+
+Seeing this from [here](http://www.airspayce.com/mikem/arduino/RadioHead/classRH__RF95.html):
+
+```
+If you have an Arduino M0 Pro from arduino.org, you should note that you cannot use Pin 2 for the interrupt line (Pin 2 is for the NMI only). The same comments apply to Pin 4 on Arduino Zero from arduino.cc. Instead you can use any other pin (we use Pin 3) and initialise RH_RF69 like this:
+// Slave Select is pin 10, interrupt is Pin 3
+RH_RF95 driver(10, 3);
+```
+
+Also in the code, references  434.0MHz, which isn't what we're using.
+
+```
+if (!rf95.init())
+  Serial.println("init failed");  
+// Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+```
+
+OOOOO ... If I continue with the Adafruit guide, there is RadioHead-based example code for the M0! Yay. Using that.
+
+Node 02: Transmit (TX)
+
+Uncommented this block as described:
+
+```
+// for feather m0  
+#define RFM95_CS 8
+#define RFM95_RST 4
+#define RFM95_INT 3
+```
+
+Node 01: Receive
+
+Changed this block to:
+
+```
+// for feather m0 RFM9x
+#define RFM95_CS 8
+#define RFM95_RST 4
+#define RFM95_INT 3
+```
+
+Ha. In troubleshooting my failed connections, saw this instruction in the guide later on: 
+
+```
+Remove the while (!Serial); line if you are not tethering to a computer, as it will cause the Feather to halt until a USB connection is made!
+```
+
+Right!
+
+Put Node 02 back on the USB with the computer and opened serial monitor.
+
+Pic.
+
+```
+Feather LoRa TX Test!
+LoRa radio init OK!
+Set Freq to: 915.00
+Transmitting...
+Sending Hello World #0
+Sending...
+Waiting for packet to complete...
+Waiting for reply...
+No reply, is there a listener around?
+Transmitting...
+Sending Hello World #1
+Sending...
+Waiting for packet to complete...
+Waiting for reply...
+No reply, is there a listener around?
+```
+
+Plugged in the Node 01 to a Lipo ...
+
+
+SUCCESS!
+
+```
+Transmitting...
+Sending Hello World #4
+Sending...
+Waiting for packet to complete...
+Waiting for reply...
+No reply, is there a listener around?
+Transmitting...
+Sending Hello World #5
+Sending...
+Waiting for packet to complete...
+Waiting for reply...
+Got reply: And hello back to you
+RSSI: -12
+Transmitting...
+Sending Hello World #6
+Sending...
+Waiting for packet to complete...
+Waiting for reply...
+Got reply: And hello back to you
+```
