@@ -272,3 +272,182 @@ Waiting for packet to complete...
 Waiting for reply...
 Got reply: And hello back to you
 ```
+
+### Mesh Setup
+
+Starting with just trying to adapt the [mesh example code](https://github.com/nootropicdesign/lora-mesh/blob/master/LoRaMesh/LoRaMesh.ino) to my Adafruit Feather M0 radios and get it working. Essentially I'm going to weave in the setup from the example transmission.
+
+Idea will be that in addition to the routing info and RSSI being passed around, I'll also pass around "I'm availble!" as `letsplay = true`.
+
+### Psudo code plan
+
+- Keep passing around data in the mesh network. Maybe less than every 5 seconds?
+- If someone presses a button
+    - light the button
+    - dance the light around
+    - change letsplay = true for that node
+    - light up the kid position on the ring for that node
+    - make a sound
+- Keep that status for like 5 minutes? Ten?
+- If letsplay becomes true for any other node
+    - light up the kid position on the ring for that node
+- If letsplay becomes false for any other node
+    - Douse the kid position on the ring for that node
+    
+-> May have to look into the allotted legal airtime
+-> May need to pare down the transmission to just simple on-off-off-on
+
+Hiccup: Looks like EEPROM is not supported in the Feather M0 chip. 
+
+- [Discussion](https://forums.adafruit.com/viewtopic.php?f=22&t=88272&sid=3beaec3c461fe3b2be928482a330d384)
+- Possible [solution](https://github.com/cmaglie/FlashStorage)
+
+However, I'm just going to hard-code the node numbers into the Arduino sketch for now.
+
+Seem to have successfully made a mesh network!
+
+```
+->2 :[{"n":255,"r":0},{"n":2,"r":-66},{"n":3,"r":-85}] OK
+node: {"1": [{"n":255,"r":0},{"n":2,"r":-66},{"n":3,"r":-85}]}
+2-> :[{"n":1,"r":-72},{"n":255,"r":0},{"n":3,"r":-57}]
+node: {"2": [{"n":1,"r":-72},{"n":255,"r":0},{"n":3,"r":-57}]}
+3-> :[{"n":1,"r":-77},{"n":2,"r":-65},{"n":255,"r":0}]
+node: {"3": [{"n":1,"r":-77},{"n":2,"r":-65},{"n":255,"r":0}]}
+->3 :[{"n":255,"r":0},{"n":2,"r":-66},{"n":3,"r":-63}] OK
+node: {"1": [{"n":255,"r":0},{"n":2,"r":-66},{"n":3,"r":-63}]}
+->2 :[{"n":255,"r":0},{"n":2,"r":-66},{"n":3,"r":-72}] OK
+node: {"1": [{"n":255,"r":0},{"n":2,"r":-66},{"n":3,"r":-72}]}
+3-> :[{"n":1,"r":-64},{"n":2,"r":-54},{"n":255,"r":0}]
+node: {"3": [{"n":1,"r":-64},{"n":2,"r":-54},{"n":255,"r":0}]}
+2-> :[{"n":1,"r":-77},{"n":255,"r":0},{"n":3,"r":-66}]
+node: {"2": [{"n":1,"r":-77},{"n":255,"r":0},{"n":3,"r":-66}]}
+->3 :[{"n":255,"r":0},{"n":2,"r":-77},{"n":3,"r":-56}] OK
+node: {"1": [{"n":255,"r":0},{"n":2,"r":-77},{"n":3,"r":-56}]}
+->2 :[{"n":255,"r":0},{"n":2,"r":-77},{"n":3,"r":-67}] OK
+node: {"1": [{"n":255,"r":0},{"n":2,"r":-77},{"n":3,"r":-67}]}
+2-> :[{"n":1,"r":-75},{"n":255,"r":0},{"n":3,"r":-67}]
+node: {"2": [{"n":1,"r":-75},{"n":255,"r":0},{"n":3,"r":-67}]}
+3-> :[{"n":1,"r":-57},{"n":2,"r":-54},{"n":255,"r":0}]
+node: {"3": [{"n":1,"r":-57},{"n":2,"r":-54},{"n":255,"r":0}]}
+->3 :[{"n":255,"r":0},{"n":2,"r":-72},{"n":3,"r":-59}] OK
+node: {"1": [{"n":255,"r":0},{"n":2,"r":-72},{"n":3,"r":-59}]}
+->2 :[{"n":255,"r":0},{"n":2,"r":-72},{"n":3,"r":-69}] OK
+```
+
+Decoding this using the description here (which describes 4 nodes instead of my 3):
+
+```text
+Each node attempts to communicate with every other node in the network, and in the process it keeps track of a routing table that describes which nodes it can talk to directly and which nodes that messages get routed through when there is no direct connection available. It also keeps track of the signal strength that it “hears” from a node when it communicates with it directly. The result is that each node has a data structure with this info. Here is a sample routing table (expressed in JSON) for node 2:
+
+{"2": [{"n":1,"r":-68}, {"n":255,"r":0}, {"n":1,"r":0}, {"n":0,"r":0}]}
+
+The data has an array of 4 records, one for each node in the network. The 4 records above represent the routing info for this node (2) communicating with nodes 1, 2, 3, and 4 respectively. Each record has two properties. Propery “n” is the identity of the node that node 2 must talk to in order to communicate with the node in this position of the table. Record number 1 {"n":1,"r":-68} means that node 2 can talk to node 1 via node 1. That is, it has successfully communicated directly with node 1 and the signal strength indicated by the “r” property is -68 dBm.
+
+Record 2 {"n":255,"r":0} has an “n” value of 255 which means “self”, so we can ignore this record. Record 3 {"n":1,"r":0} means that node 2 must communicate with node 3 via node 1 because there is no direct communication (which is why the RSSI value is 0). Record 4 {"n":0,"r":0} has a “n” property of 0 which means that node 2 has not yet discovered a way to talk to node 4. This may because it has not tried yet, or perhaps node 4 has dropped out of the network and nobody can find it.
+
+Over time, by attempting to send messages to every other node, each node builds up this information about who it can talk to and how its messages are being routed, as well as the signal strength that it “hears” from any node it successfully communicates directly with. The information sent in messages is the node’s routing table itself. That is why we represent the routing table as a JSON string and use abbreviated property names. We want the message to be short.
+```
+
+
+## Parsing The Data
+
+Realized that this was just generating json strings that were never meant to be analyzed/parsed by the arduino programs ... just passed along or printed (it was actually for a visual project that parsed the json elsewhere). 
+
+Did not look forward to trying to pull out values from the buffer string ... so:
+
+Using [ArduinoJson](https://arduinojson.org/v5/example/parser/) which seems super cool.
+
+Currently I'm outputting:
+
+```json
+[{"n":1,"r":-33,"p":0},{"n":255,"r":0,"p":1},{"n":3,"r":-47,"p":0}]
+```
+
+Put that array into the [ArduinoJson assistant](https://arduinojson.org/v5/assistant/), got:
+
+```c
+const size_t bufferSize = JSON_ARRAY_SIZE(3) + 3*JSON_OBJECT_SIZE(3) + 50;
+DynamicJsonBuffer jsonBuffer(bufferSize);
+
+const char* json = "[{\"n\":1,\"r\":-33,\"p\":0},{\"n\":255,\"r\":0,\"p\":1},{\"n\":3,\"r\":-47,\"p\":0}]";
+
+JsonArray& root = jsonBuffer.parseArray(json);
+
+JsonArray& root_ = root;
+
+JsonObject& root_0 = root_[0];
+int root_0_n = root_0["n"]; // 1
+int root_0_r = root_0["r"]; // -33
+int root_0_p = root_0["p"]; // 0
+
+JsonObject& root_1 = root_[1];
+int root_1_n = root_1["n"]; // 255
+int root_1_r = root_1["r"]; // 0
+int root_1_p = root_1["p"]; // 1
+
+JsonObject& root_2 = root_[2];
+int root_2_n = root_2["n"]; // 3
+int root_2_r = root_2["r"]; // -47
+int root_2_p = root_2["p"]; // 0
+```
+
+## Progress as of PlayDoorbell_4_playdata
+
+currently outputting json that includes `"b"` for button-pushed and `"t"` for the routing table.
+
+```
+node: {"2": {"b":0,"t":[{"n":1,"r":-26},{"n":255,"r":0},{"n":3,"r":-11}] }}
+->2 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-26},{"n":3,"r":-16}] } OK
+->3 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-13},{"n":3,"r":-16}] } OK
+2-> :{"b":0,"t":[{"n":1,"r":-28},{"n":255,"r":0},{"n":3,"r":-11}] }
+node: {"2": {"b":0,"t":[{"n":1,"r":-28},{"n":255,"r":0},{"n":3,"r":-11}] }}
+->2 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-26},{"n":3,"r":-16}] } OK
+3-> :{"b":1,"t":[{"n":127,"r":-29},{"n":2,"r":-24},{"n":255,"r":0}] }
+node: {"3": {"b":1,"t":[{"n":127,"r":-29},{"n":2,"r":-24},{"n":255,"r":0}] }}
+2-> :{"b":0,"t":[{"n":1,"r":-27},{"n":255,"r":0},{"n":3,"r":-11}] }
+node: {"2": {"b":0,"t":[{"n":1,"r":-27},{"n":255,"r":0},{"n":3,"r":-11}] }}
+->3 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-26},{"n":3,"r":-27}] } OK
+->2 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-26},{"n":3,"r":-16}] } OK
+2-> :{"b":0,"t":[{"n":1,"r":-27},{"n":255,"r":0},{"n":3,"r":-24}] }
+node: {"2": {"b":0,"t":[{"n":1,"r":-27},{"n":255,"r":0},{"n":3,"r":-24}] }}
+3-> :{"b":1,"t":[{"n":1,"r":-29},{"n":2,"r":-11},{"n":255,"r":0}] }
+node: {"3": {"b":1,"t":[{"n":1,"r":-29},{"n":2,"r":-11},{"n":255,"r":0}] }}
+->3 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-26},{"n":3,"r":-26}] } OK
+->2 :{"b":0,"t":[{"n":255,"r":0},{"n":2,"r":-26},{"n":3,"r":-13}] } OK
+```
+
+## Preparing the Button (v5)
+
+This looks good on M0 LoRa Feather interrupts: http://embeddedapocalypse.blogspot.com/2017/04/arduino-interrupt-on-button-press.html
+
+Here's his example code:
+
+```c
+#define BUTTON        3
+void setup() {
+
+   // pinMode(BUTTON, INPUT);
+   // digitalWrite(BUTTON, HIGH);
+   
+   // this gets rewritten in for M0 as:
+   pinMode(BUTTON, INPUT_PULLUP)
+   
+}
+void loop() {
+   attachInterrupt(digitalPinToInterrupt(BUTTON), wakeUp, LOW);
+   // Put your board to sleep somehow
+   // Do a bunch of stuff that you do on a button press
+}
+void wakeUp() {
+  detachInterrupt(digitalPinToInterrupt(BUTTON));
+}
+```
+
+
+Seems most/all MO pins can be used as external interrupts
+tho some are shared. see pinout: https://learn.adafruit.com/assets/46254
+
+Using A4 / Digital 18
+
+
+
