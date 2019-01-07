@@ -1,8 +1,5 @@
-// v5 add button logic
+// v4 add in the playdata variables 
 
-#define THIS_NODE 1  //   <<<< change this for each node
-
-#define N_NODES 3 // total nodes
 
 // #include <EEPROM.h> // not available on the Feather M0
 #include <RHRouter.h>
@@ -12,12 +9,10 @@
 
 #define RH_HAVE_SERIAL
 #define LED 9
+#define N_NODES 3
 
-#define BUTTON 18   // aka A4 ... Seems most/all MO pins can be used as external interrupts
-                    // tho some are shared. see pinout .https://learn.adafruit.com/assets/46254
-#define BUTTON_LIGHT 17 // aka A3
-
-
+#define THIS_NODE 1  //   <<<< change this for each node
+#define BUTTON_PUSHED 0  // 1 true, 0 false
 
 #define DEBUG_MODE 1     // 1 true, 0 false
 
@@ -102,11 +97,6 @@ int16_t rssi[N_NODES]; // signal strength info
 // message buffer
 char buf[RH_MESH_MAX_MESSAGE_LEN];
 
-boolean my_button_active = false;
-unsigned long my_button_millis = 0;
-unsigned long my_button_debounce = 50; // millis for debounce detection
-
-
 //// This doesn't seem to compile on the Feather M0:
 
   //int freeMem() {
@@ -121,13 +111,6 @@ void setup() {
 
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
-
-  // for the button detection / interrupt
-  pinMode(BUTTON, INPUT_PULLUP);
-
-  // douse the button light
-  pinMode(BUTTON_LIGHT, OUTPUT);
-  digitalWrite(BUTTON_LIGHT, LOW);
   
   randomSeed(analogRead(0));
   pinMode(LED, OUTPUT);
@@ -251,6 +234,8 @@ void updateRoutingTable() {
       if (routes[n-1] == 0) {
         // if we have no route to the node, reset the received signal strength
         rssi[n-1] = 0;
+        // also reset letsplay because we don't know it to be true
+        letsplay[n-1] = false;
       }
     }
   }
@@ -261,7 +246,6 @@ void updateRoutingTable() {
 // ... the one we passed to it
 // ... which is how we get it back out later. 
 // see https://liudr.wordpress.com/2012/01/16/sprintf/
-
 void getRouteInfoString(char *p, size_t len) {
   p[0] = '\0'; // clear buffer first
 
@@ -270,8 +254,8 @@ void getRouteInfoString(char *p, size_t len) {
   // otherwise it's just
   // {"b":0}
 
-  strcat(p, "{\"b\":"); // b: button state
-  sprintf(p+strlen(p), "%d", my_button_active);
+  strcat(p, "{\"b\":"); // b: button pushed
+  sprintf(p+strlen(p), "%d", BUTTON_PUSHED);
 
   if (DEBUG_MODE) {
     // add routing table data to json
@@ -326,40 +310,14 @@ void parsePlayArray(uint8_t node, char *s) {
   
 }
 
-void buttonPushed() {
+void updateMyButtonStatus() {
 
-  // this function activated by the interrupt
-
-  // immediately detatch the interrupt until we're done here
-  detachInterrupt(digitalPinToInterrupt(BUTTON));
-
-  // check if button has just been pushed (or got noise)
-  if ( (millis() - my_button_millis) > my_button_debounce) {
-
-    // toggle button state
-    my_button_active = !my_button_active;
-
-    // reset millis
-    my_button_millis = millis();
-
-    // turn button LED on or off, depending on state
-    if (my_button_active) {
-      digitalWrite(BUTTON_LIGHT, HIGH);
-    } else {
-      digitalWrite(BUTTON_LIGHT, LOW);
-    }
-    
-  }
-
-  // reestablish interrupt
-  attachInterrupt(digitalPinToInterrupt(BUTTON), buttonPushed, LOW);
+  if (BUTTON_PUSHED) letsplay[THIS_NODE-1] = true;
+  
 }
 
 
 void loop() {
-
-  // establish interrupt
-  attachInterrupt(digitalPinToInterrupt(BUTTON), buttonPushed, LOW);
 
   for(uint8_t n=1;n<=N_NODES;n++) {
 
@@ -368,6 +326,7 @@ void loop() {
     if (n == nodeId) continue; // self
 
     updateRoutingTable();
+    updateMyButtonStatus();
     getRouteInfoString(buf, RH_MESH_MAX_MESSAGE_LEN);
 
     Serial.print(F("->"));

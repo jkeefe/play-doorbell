@@ -447,7 +447,17 @@ void wakeUp() {
 Seems most/all MO pins can be used as external interrupts
 tho some are shared. see pinout: https://learn.adafruit.com/assets/46254
 
-Using A4 / Digital 18
+Using A4 / Digital 18 for the button switch
+
+Using A3 / Digital 17 for the button's internal LED
 
 
+## The Neopixel Ring
 
+Regular sketch wouldn't compile ... so looking to this: https://learn.adafruit.com/dma-driven-neopixels/overview
+
+Actually, all of the libraries were available in the Arduino Library Manager.
+
+Also had to delete my old Adafruit_NeoPixel library and reinstall.
+
+Using pin 5. Limited number available: 5, 11, A5, 23
